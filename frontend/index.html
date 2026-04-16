@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishGuard AI</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<canvas id="particles"></canvas>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <span class="logo-hex">⬡</span>
+    <div>
+      <div class="logo-name">PHISH<span class="accent">GUARD</span> <span class="logo-ai"></span></div>
+      <div class="logo-sub">URL THREAT DETECTION SYSTEM</div>
+    </div>
+  </div>
+  <nav>
+    <button class="tab-btn active" data-tab="scanner">⬡ SCANNER</button>
+    <button class="tab-btn" data-tab="history">📋 HISTORY</button>
+    <button class="tab-btn" data-tab="admin">⚙ ADMIN</button>
+  </nav>
+  <div class="api-status">
+    <span class="dot" id="apiDot"></span>
+    <span id="apiStatusText">CHECKING...</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════ TAB: SCANNER ═══════════════════════ -->
+<main class="tab-content active" id="tab-scanner">
+
+  <!-- Startup guide shown when API is offline -->
+  <div id="startupGuide" class="startup-guide hidden">
+    <h3>⚠️ Backend Not Running — Follow These Steps</h3>
+    <ol>
+      <li>Open <strong>MySQL Workbench</strong> → run: <code>CREATE DATABASE phishguard;</code></li>
+      <li>Open <strong>VS Code</strong> → open the <code>phishguard-ai</code> folder</li>
+      <li>Press <strong>Ctrl + `</strong> to open terminal</li>
+      <li>Run: <code>cd backend/phishguard</code></li>
+      <li>Run: <code>mvn spring-boot:run</code></li>
+      <li>Wait for: <em>"PhishGuard AI is RUNNING on port 8080!"</em></li>
+      <li>Come back here — the status above will turn <span style="color:#00ff88">GREEN ✓</span></li>
+    </ol>
+    <p class="guide-note">Also make sure <code>application.properties</code> has your correct MySQL password.</p>
+  </div>
+
+  <div class="hero">
+    <h1>DETECT. <span class="accent">ANALYZE.</span> PROTECT.</h1>
+    <p>AI-powered phishing URL scanner with 10-rule heuristic engine</p>
+  </div>
+
+  <div class="scanner-box">
+    <div class="input-row">
+      <span class="link-icon">🔗</span>
+      <input id="urlInput" type="text"
+             placeholder="https://suspicious-site.verify-account.xyz/login..."
+             autocomplete="off"/>
+      <button id="scanBtn" onclick="scanUrl()">
+        <span id="btnText">SCAN</span>
+        <span id="btnSpinner" class="spinner hidden"></span>
+      </button>
+    </div>
+    <div class="test-urls">
+      <span class="test-label">Try:</span>
+      <button class="test-pill safe"   onclick="fill('https://github.com')">✅ Safe</button>
+      <button class="test-pill warn"   onclick="fill('http://paypal-verify.secure-login.xyz/account')">⚡ Suspicious</button>
+      <button class="test-pill danger" onclick="fill('http://192.168.1.1/login@paypal.com/verify?token=abc123def456ghi789')">☠️ Malicious</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="resultBox" class="result-box hidden">
+    <div id="verdictCard" class="verdict-card">
+      <div class="verdict-left">
+        <div id="vIcon" class="v-icon"></div>
+        <div>
+          <div id="vLabel" class="v-label"></div>
+          <div id="vMsg"   class="v-msg"></div>
+        </div>
+      </div>
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 120 72" class="gauge-svg">
+          <path class="gauge-track" d="M15,65 A50,50 0 0,1 105,65"/>
+          <path class="gauge-arc"  d="M15,65 A50,50 0 0,1 105,65"
+                id="gaugeArc" stroke-dasharray="0 157"/>
+          <text id="gaugeNum"   x="60" y="60" class="g-num">0</text>
+          <text x="60" y="70" class="g-sub">/ 100</text>
+        </svg>
+        <div class="gauge-label">RISK SCORE</div>
+      </div>
+    </div>
+    <div id="flagsBox" class="flags-box hidden">
+      <div class="flags-title">⚡ TRIGGERED DETECTION RULES</div>
+      <div id="flagsList" class="flags-list"></div>
+    </div>
+    <div id="safeBox" class="safe-box hidden">✅ No suspicious signals detected</div>
+  </div>
+</main>
+
+<!-- ═══════════════════════ TAB: HISTORY ═══════════════════════ -->
+<main class="tab-content" id="tab-history">
+  <div class="tab-top">
+    <h2 class="tab-title">📋 SCAN HISTORY</h2>
+    <button class="action-btn" onclick="loadHistory()">↻ REFRESH</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">        <div class="stat-n" id="sTot">—</div><div class="stat-l">TOTAL</div></div>
+    <div class="stat-box red">    <div class="stat-n" id="sMal">—</div><div class="stat-l">MALICIOUS</div></div>
+    <div class="stat-box yellow"> <div class="stat-n" id="sSus">—</div><div class="stat-l">SUSPICIOUS</div></div>
+    <div class="stat-box green">  <div class="stat-n" id="sSaf">—</div><div class="stat-l">SAFE</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>URL</th><th>VERDICT</th><th>SCORE</th><th>FLAGS</th><th>TIME</th><th></th></tr>
+      </thead>
+      <tbody id="histBody">
+        <tr><td colspan="7" class="empty-row">Click REFRESH to load history</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ═══════════════════════ TAB: ADMIN ═══════════════════════ -->
+<main class="tab-content" id="tab-admin">
+  <div class="tab-top">
+    <h2 class="tab-title">⚙ ADMIN PANEL</h2>
+  </div>
+
+  <div class="admin-grid">
+
+    <div class="admin-card">
+      <div class="card-title">🔌 API ENDPOINTS</div>
+      <div class="ep-row"><span class="badge post">POST</span><code>/api/scan</code></div>
+      <div class="ep-row"><span class="badge get">GET</span><code>/api/history</code></div>
+      <div class="ep-row"><span class="badge get">GET</span><code>/api/stats</code></div>
+      <div class="ep-row"><span class="badge get">GET</span><code>/api/health</code></div>
+      <div class="ep-row"><span class="badge del">DEL</span><code>/api/history/{id}</code></div>
+      <button class="action-btn full" onclick="testHealth()">▶ TEST /health</button>
+      <pre id="healthOut" class="code-out">Press button to test...</pre>
+    </div>
+
+    <div class="admin-card">
+      <div class="card-title">🧠 DETECTION RULES</div>
+      <div class="rule"><span class="pts">+20</span> No HTTPS</div>
+      <div class="rule"><span class="pts">+15</span> URL length &gt; 75 chars</div>
+      <div class="rule"><span class="pts">+25</span> @ symbol in URL</div>
+      <div class="rule"><span class="pts">+30</span> IP address as domain</div>
+      <div class="rule"><span class="pts">+20</span> Phishing keywords</div>
+      <div class="rule"><span class="pts">+25</span> Risky TLD (.tk .xyz .ru…)</div>
+      <div class="rule"><span class="pts">+10</span> Hyphen in domain</div>
+      <div class="rule"><span class="pts">+20</span> 4+ subdomains</div>
+      <div class="rule"><span class="pts">+15</span> URL-encoded characters</div>
+      <div class="rule"><span class="pts">+10</span> Double slash in path</div>
+      <div class="threshold-row">
+        <span class="thr green-t">0–29 SAFE</span>
+        <span class="thr yellow-t">30–59 SUSPICIOUS</span>
+        <span class="thr red-t">60+ MALICIOUS</span>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <div class="card-title">🛠 TECH STACK</div>
+      <div class="stack"><span class="sl">FRONTEND</span>HTML · CSS · JavaScript</div>
+      <div class="stack"><span class="sl">BACKEND</span>Java 17 · Spring Boot 3.2</div>
+      <div class="stack"><span class="sl">DATABASE</span>MySQL · Spring Data JPA</div>
+      <div class="stack"><span class="sl">API</span>REST · JSON · CORS enabled</div>
+      <div class="stack"><span class="sl">TOOLS</span>VS Code · Postman · Git</div>
+    </div>
+
+    <div class="admin-card danger-card">
+      <div class="card-title" style="color:#ff3366">⚠️ DANGER ZONE</div>
+      <p style="font-size:.8rem;color:#4a6a80;margin-bottom:1rem">Delete all scan history from the database permanently.</p>
+      <button class="danger-btn" onclick="clearAll()">🗑 CLEAR ALL HISTORY</button>
+      <pre id="clearOut" class="code-out"></pre>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
